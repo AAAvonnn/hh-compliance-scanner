@@ -1,5 +1,4 @@
 streamlit
 openai-whisper
-torch==2.0.1+cpu
+torch
 requests
---index-url https://download.pytorch.org/whl/cpu
