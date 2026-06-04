@@ -1,35 +1,34 @@
-"""HH 鍚堣鎵弿 v8 鈥?HuggingFace 鐗?""
+"""HH 合规扫描 v8 — Whisper+LLM校正+精准时间+首饰专域"""
 import os, json, subprocess, tempfile, time, re
 import streamlit as st
 import requests
 import whisper
 
-st.set_page_config(page_title="HH 鎵弿 v8", page_icon="鈿?, layout="wide")
-st.title("鈿?HH 瑙嗛鍚堣鎵弿鍣?v8")
-st.caption("Whisper+LLM鍚庢牎姝?路 棣栭グ涓撳煙杞綍 路 绮惧噯鏃堕棿杞?路 OCR 路 鑷畾涔夎瘝搴?)
+st.set_page_config(page_title="HH 扫描 v8", page_icon="⚡", layout="wide")
+st.title("⚡ HH 视频合规扫描器 v8")
+st.caption("Whisper+LLM后校正 · 首饰专域转录 · 精准时间轴 · OCR · 自定义词库")
 
-# HF Secrets 涓殑 API Key
-API_KEY = st.secrets.get("ARK_API_KEY", "")
+API_KEY = "ark-37b28c7e-6d32-484a-bb64-1c7eac3e0f08-0436f"
 
 def default_douyin():
     return {
-        "鏋侀檺璇?:["鏈€","绗竴","鍞竴","鍏ㄧ綉鏈€浣?,"椤剁骇","鏋佽嚧","缁濆","姘歌繙","姘镐箙","涓囪兘","鐧惧垎鐧?,"闆堕闄?,"鍥藉绾?,"鍏ㄧ悆棣栧彂","鐙"],
-        "杩蜂俊璇?:["鎷涜储","淇濅綉","绁堢","寮€鍏?,"椋庢按","杞繍","杈熼偑","鎶よ韩","鏄剧伒","杩蜂俊","鏃哄畢","閫㈠嚩鍖栧悏"],
-        "铏氬亣鎵胯":["鍖呰繃","绔嬮┈鍗囧€?,"绋宠禋","蹇呮定","淇濆簳","缁濆涓嶈捣鐞?,"缁濅笉鎺夎壊","姘镐箙淇濅慨"],
-        "鍔熸晥璇?:["鏍规不","涓€鐩掕鏁?,"娌荤枟","娌绘剤","鍖荤枟绾?,"澶勬柟","鐗规晥","绁炴晥","濂囨晥","褰诲簳娓呴櫎","绁涙牴"],
-        "瀵规瘮璐綆":["鍚婃墦","纰惧帇","瀹岀垎","绉掓潃鍚岃"],
-        "璇浠锋牸":["浜忔湰","璧旈挶","涓嶈禋閽?,"鍊掗棴","鐮翠骇浠?,"鍏嶈垂閫?],
+        "极限词":["最","第一","唯一","全网最低","顶级","极致","绝对","永远","永久","万能","百分百","零风险","国家级","全球首发","独家"],
+        "迷信词":["招财","保佑","祈福","开光","风水","转运","辟邪","护身","显灵","迷信","旺宅","逢凶化吉"],
+        "虚假承诺":["包过","立马升值","稳赚","必涨","保底","绝对不起球","绝不掉色","永久保修"],
+        "功效词":["根治","一盒见效","治疗","治愈","医疗级","处方","特效","神效","奇效","彻底清除","祛根"],
+        "对比贬低":["吊打","碾压","完爆","秒杀同行"],
+        "误导价格":["亏本","赔钱","不赚钱","倒闭","破产价","免费送"],
     }
 
 def default_kuaishou():
     return {
-        "鏉愯川鎵胯":["涓嶆帀鑹?,"涓嶈お鑹?,"涓嶈劚鑹?,"姘镐笉瑜壊","淇濊壊","姘镐箙淇濊壊","闃茶繃鏁?,"闃叉晱","鎶楁晱","姘存礂涓嶆帀鑹?,"姘存礂涓嶇敤鎽?,"鐫¤涓嶇敤鎽?,"娲楁尽涓嶇敤鎽?,"鎴寸潃娲楁尽","鎴寸潃鐫¤"],
-        "鏋侀檺璇?:["鏈€","绗竴","鍞竴","鍏ㄧ綉鏈€浣?,"椤剁骇","鏋佽嚧","缁濆","姘歌繙","姘镐箙","涓囪兘","鐧惧垎鐧?,"鍥藉绾?,"鍏ㄧ悆棣栧彂","鐙"],
-        "杩蜂俊璇?:["鎷涜储","淇濅綉","绁堢","寮€鍏?,"椋庢按","杞繍","杈熼偑","鎶よ韩","鏃哄畢"],
-        "铏氬亣鎵胯":["鍖呰繃","绋宠禋","蹇呮定","淇濆簳","鎵胯","淇濊瘉"],
-        "鍔熸晥璇?:["鏍规不","娌绘剤","娌荤枟","绁炴晥","濂囨晥","鐗规晥","绔嬬瑙佸奖"],
-        "瀵规瘮璐綆":["鍚婃墦","纰惧帇","瀹岀垎","绉掓潃鍚岃"],
-        "浠锋牸璇":["浜忔湰","璧旈挶","涓嶈禋閽?,"鍊掗棴","鐮翠骇浠?],
+        "材质承诺":["不掉色","不褪色","不脱色","永不褪色","保色","永久保色","防过敏","防敏","抗敏","水洗不掉色","水洗不用摘","睡觉不用摘","洗澡不用摘","戴着洗澡","戴着睡觉"],
+        "极限词":["最","第一","唯一","全网最低","顶级","极致","绝对","永远","永久","万能","百分百","国家级","全球首发","独家"],
+        "迷信词":["招财","保佑","祈福","开光","风水","转运","辟邪","护身","旺宅"],
+        "虚假承诺":["包过","稳赚","必涨","保底","承诺","保证"],
+        "功效词":["根治","治愈","治疗","神效","奇效","特效","立竿见影"],
+        "对比贬低":["吊打","碾压","完爆","秒杀同行"],
+        "价格误导":["亏本","赔钱","不赚钱","倒闭","破产价"],
     }
 
 if 'douyin_dict' not in st.session_state:
@@ -39,66 +38,79 @@ if 'kuaishou_dict' not in st.session_state:
 
 def flatten(d): return sorted(set(w for words in d.values() for w in words), key=len, reverse=True)
 
-# 棣栭グ棰嗗煙璇嶆眹琛?鈥?甯姪 Whisper 绮惧噯杞綍
+# 首饰领域词汇表 — 帮助 Whisper 精准转录
 JEWELRY_VOCAB = (
-    "浠ヤ笅鏄楗扮彔瀹濈被鐩存挱鍙ｆ挱锛岃绮惧噯璇嗗埆浠ヤ笅璇嶆眹锛?
-    # 鍝佺被
-    "鑰抽拤 鑰崇幆 鑰冲潬 鑰虫墸 鑰抽澶?椤归摼 鍚婂潬 鎵嬮摼 鎵嬮暞 鑴氶摼 鎴掓寚 鍙戠蔼 鍙戝す 鍙戝崱 鑳搁拡 鎶撳す 澶撮グ 澶寸怀 鍙戝湀 鍙戠畭 椤瑰湀 閿侀閾?鑴氶暞 鑴氭垝 鎸囩幆 "
-    # 鍏冪礌閫犲瀷
-    "鐨囧啝 閾冮摏 铦磋澏 鑺辨湹 鑺辩摚 鍥涘彾鑽?鐖卞績 鏄熸槦 鏈堜寒 澶槼 缇芥瘺 缈呰唨 澶╀娇 鎭堕瓟 钁姦 绂忚 灏忚洰鑵?绔硅妭 璐濆３ 鐝嶇彔 鐝犵彔 灏忕背鐝?绫崇彔 缂栫粐 闀傜┖ 娴佽嫃 楹︾ 姘撮捇 閿嗙煶 鐚溂鐭?鐚尗鐭?姘存櫠 鐜涚憴 鐜夌煶 缈＄繝 閽荤煶 瀹濈煶 纰庨捇 鏂圭硸 鑿卞舰 娉㈢偣 鏉＄汗 璞圭汗 鏍煎瓙 鍦嗙幆 鏂瑰潡 涓夎 姘存淮 鎵囧瓙 鎵囪礉 閾舵潖 "
-    # 鏉愯川宸ヨ壓
-    "閾堕拡 鍚堥噾 闀€閲?闀€閾?鍖呴噾 閽涢挗 绾摱 閾滈晙閲?鐢甸晙 鐑ゆ紗 鐝愮悈 婊撮噳 鎵嬪伐 鎵嬩綔 缂栫粐 缂栫粐缁?浜氬厠鍔?鏍戣剛 闄剁摲 鐞夌拑 鐜荤拑 閿嗙煶 璐濇瘝 澶╃劧鐭?"
-    # 韬綋閮ㄤ綅
-    "閿侀 鑰冲瀭 鑰抽 鎵嬭厱 鑴氳笣 鑴氳剸 棰堥棿 鎸囧皷 鍙戦棿 鑰宠竟 鑳稿墠 鑳稿彛 鎵嬭儗 鎵嬫帉 鎵嬫寚 澶ф媷鎸?椋熸寚 涓寚 鏃犲悕鎸?灏忔媷鎸?鑴栧瓙 鑰虫湹 宸﹁剼 鍙宠剼 宸︽墜 鍙虫墜 鍙岃吙 鎵嬭噦 "
-    # 淇グ璇?    "杞诲ア 楂樼骇鎰?姘旇川 娓╂煍 绮捐嚧 浼橀泤 鏃跺皻 鐧炬惌 鏄剧櫧 鏄剧槮 鏄惧 楂樼骇 鐢滅編 鍙埍 澶嶅彜 灏忎紬 娉曞紡 娆х編 闊╃郴 鏃ョ郴 绠€绾?鏋佺畝 涓€?寰″ 灏戝コ 妫郴 鏂囪壓 娓呮柊 鏆楅粦 鏈嬪厠 鎬ф劅 "
-    # 璐ㄦ劅鎻忚堪
-    "涓嶆帀鑹?涓嶈お鑹?涓嶈劚鑹?淇濊壊 闃茶繃鏁?闃叉晱 鎶楁晱 涓嶈繃鏁?姘存礂涓嶆帀鑹?娲楁尽涓嶇敤鎽?鐫¤涓嶇敤鎽?闃叉按 闃叉睏 鑰愮（ 鑰愬埉 涓嶆哀鍖?涓嶇敓閿?涓嶆帀閽?涓嶅嬀澶村彂 涓嶆寕琛ｆ湇 涓嶅す鑲?"
-    # 钀ラ攢璇濇湳
-    "涓や綅鏁?鍑犲崄鍧?鎬т环姣?骞虫浛 澶嶈喘 鐖嗘 鏂版 鐑攢 闄愭椂 浼樻儬 娲诲姩浠?鐩存挱闂?涓嬪崟 鐜拌揣 绂忓埄 绉掓潃 瀹犵矇 闂溂鍏?涓嶈俯闆?閫侀椇瀵?閫佸コ鍙?閫佸濡?鑷埓 绀肩墿 鐢熸棩绀肩墿 绾康鏃?"
-    # 棰滆壊
-    "濂剁櫧鑹?閾惰壊 閲戣壊 鐜懓閲?閿嗙煶鐧?鐝嶇彔鐧?澧ㄧ豢 婀栬摑 妯辫姳绮?濂惰尪鑹?榛戣壊 鐧借壊 閫忔槑 閰掔孩 瀹濊摑 棣欐 绱綏鍏?闆捐摑 鐑熺伆"
-    # 绌挎埓鏂瑰紡
-    "浣╂埓 鎴翠笂 鎽樹笅鏉?鎵ｄ笂 绯讳笂 鍒笂 鎻掍笂 鍗′笂 濂椾笂 绌夸笂 鎸備笂 "
-    # 绌挎惌鍦烘櫙
-    "鐧借‖琛?灏忛粦瑁?纰庤姳瑁?鍚婂甫瑁?姣涜。 鍗。 瑗胯 澶ц。 椋庤。 鏃楄 姹夋湇 鍙よ 濠氱罕 绀兼湇 閫氬嫟 涓婄彮 绾︿細 閫涜 娲惧 鏅氬 濠氱ぜ 鏃ュ父 鍑鸿"
-    # 甯歌鍙ｆ挱鍙ュ紡
-    "濮愬 濂崇敓 濂充汉 濂冲 浠欏コ 灏忓濮?澶編浜?鐗瑰埆濂界湅 瓒呭ソ鐪?璋佹埓璋佺煡閬?鐪熺殑缁?涓€鐪煎氨鐖变笂 鎴翠笂灏变笉鎯虫憳 鍥炲ご鐜?绮捐嚧鎰?姘涘洿鎰?浠紡鎰?灏忓績鏈?鐐圭潧涔嬬瑪"
+    "以下是首饰珠宝类直播口播，请精准识别以下词汇："
+    # 品类
+    "耳钉 耳环 耳坠 耳扣 耳骨夹 项链 吊坠 手链 手镯 脚链 戒指 发簪 发夹 发卡 胸针 抓夹 头饰 头绳 发圈 发箍 项圈 锁骨链 脚镯 脚戒 指环 "
+    # 元素造型
+    "皇冠 铃铛 蝴蝶 花朵 花瓣 四叶草 爱心 星星 月亮 太阳 羽毛 翅膀 天使 恶魔 葫芦 福袋 小蛮腰 竹节 贝壳 珍珠 珠珠 小米珠 米珠 编织 镂空 流苏 麦穗 水钻 锆石 猫眼石 猫猫石 水晶 玛瑙 玉石 翡翠 钻石 宝石 碎钻 方糖 菱形 波点 条纹 豹纹 格子 圆环 方块 三角 水滴 扇子 扇贝 银杏 "
+    # 材质工艺
+    "银针 合金 镀金 镀银 包金 钛钢 纯银 铜镀金 电镀 烤漆 珐琅 滴釉 手工 手作 编织 编织绳 亚克力 树脂 陶瓷 琉璃 玻璃 锆石 贝母 天然石 "
+    # 身体部位
+    "锁骨 耳垂 耳骨 手腕 脚踝 脚脖 颈间 指尖 发间 耳边 胸前 胸口 手背 手掌 手指 大拇指 食指 中指 无名指 小拇指 脖子 耳朵 左脚 右脚 左手 右手 双腿 手臂 "
+    # 修饰词
+    "轻奢 高级感 气质 温柔 精致 优雅 时尚 百搭 显白 显瘦 显嫩 高级 甜美 可爱 复古 小众 法式 欧美 韩系 日系 简约 极简 中性 御姐 少女 森系 文艺 清新 暗黑 朋克 性感 "
+    # 质感描述
+    "不掉色 不褪色 不脱色 保色 防过敏 防敏 抗敏 不过敏 水洗不掉色 洗澡不用摘 睡觉不用摘 防水 防汗 耐磨 耐刮 不氧化 不生锈 不掉钻 不勾头发 不挂衣服 不夹肉 "
+    # 营销话术
+    "两位数 几十块 性价比 平替 复购 爆款 新款 热销 限时 优惠 活动价 直播间 下单 现货 福利 秒杀 宠粉 闭眼入 不踩雷 送闺密 送女友 送妈妈 自戴 礼物 生日礼物 纪念日 "
+    # 颜色
+    "奶白色 银色 金色 玫瑰金 锆石白 珍珠白 墨绿 湖蓝 樱花粉 奶茶色 黑色 白色 透明 酒红 宝蓝 香槟 紫罗兰 雾蓝 烟灰"
+    # 穿戴方式
+    "佩戴 戴上 摘下来 扣上 系上 别上 插上 卡上 套上 穿上 挂上 "
+    # 穿搭场景
+    "白衬衫 小黑裙 碎花裙 吊带裙 毛衣 卫衣 西装 大衣 风衣 旗袍 汉服 古装 婚纱 礼服 通勤 上班 约会 逛街 派对 晚宴 婚礼 日常 出街"
+    # 常见口播句式
+    "姐妹 女生 女人 女孩 仙女 小姐姐 太美了 特别好看 超好看 谁戴谁知道 真的绝 一眼就爱上 戴上就不想摘 回头率 精致感 氛围感 仪式感 小心机 点睛之笔"
 )
 
-# 椋庨櫓鎻愰啋璇嶏紙鏍囬粍锛?RISK_WORDS = ["鍙戦粦","鍙橀粦","鎺夎壊","瑜壊","鍙樿壊","姘у寲","鐢熼攬","瑜晙","鎺夐捇","鑴辫兌","鏂",
-              "杩囨晱","绾㈣偪","鍙戠棐","娌愭荡闇?,"娲楀彂姘?,"娲楁磥绮?,"棣欑殏","鑲ョ殏","鐑按",
-              "娲楁尽","鐫¤","娓告吵","杩愬姩","鍑烘睏","娌炬按","纰版按","娲楁墜","娲楃",
-              "涓嶇敤鎽?,"涓嶆憳","涓嶆嬁涓嬫潵"]
+# 风险提醒词（标黄）
+RISK_WORDS = ["发黑","变黑","掉色","褪色","变色","氧化","生锈","褪镀","掉钻","脱胶","断裂",
+              "过敏","红肿","发痒","沐浴露","洗发水","洗洁精","香皂","肥皂","热水",
+              "洗澡","睡觉","游泳","运动","出汗","沾水","碰水","洗手","洗碗",
+              "不用摘","不摘","不拿下来"]
 
 @st.cache_resource
 def load_whisper():
-    return whisper.load_model('tiny')  # HF鍏嶈垂鐗堢敤tiny锛屾湰鍦扮敤small
+    return whisper.load_model('small')  # small比tiny准30%，对口音更包容
 
 whip = load_whisper()
 
-# ===== Whisper杞綍鍚嶭LM鏍℃ =====
+# ===== Whisper转录后LLM校正 =====
 def fix_transcription(raw_text):
-    """鐢↙LM鏍规嵁棣栭グ涓婁笅鏂囦慨姝hisper鐨勮闊宠瘑鍒敊璇?""
-    prompt = f"""浣犳槸棣栭グ鐝犲疂鐩存挱璇煶璇嗗埆鏍″涓撳銆備笅闈㈡槸涓€娈礧hisper杞綍鐨勯楗扮洿鎾彛鎾紝鍥犱富鎾湁鍙ｉ煶瀵艰嚧璇嗗埆閿欒銆傝鏍规嵁涓婁笅鏂囧拰棣栭グ棰嗗煙甯歌瘑淇鎵€鏈夐敊璇€?
-銆愬繀椤讳慨姝ｇ殑甯歌閿欒銆?- 鍚婃/鍚婃 鈫?鎺夎壊
-- 鐏佃崱/闆跺綋/闆堕摏 鈫?閾冮摏
-- 榛勭摐/榛勫厜/鎯跺厜 鈫?鐨囧啝
-- 鏈ㄩ奔楣?鏈ㄩ奔璺?鈫?娌愭荡闇?- 绾藉厜/鐗涘厜/鎵厜 鈫?娴佸厜
-- 璧风殑鍚婅剼/娲楃殑鍚婅剼 鈫?娲楁钉鍓?- 鍙戦粦 鈫?鍙戦粦锛堟纭紝淇濇寔锛?- 鐓?涓?鈫?娲楋紙娲楁尽鍦烘櫙锛?- 楂樻俯姘寸叜 鈫?楂樻俯姘存礂
-- 鑴氳劯/瑙掕劯 鈫?鑴氶摼
-- 鎵嬭劯 鈫?鎵嬮摼
-- 鑰崇洴 鈫?鑰抽拤
-- 鍚戣劯 鈫?椤归摼
-- 鍊熷瓙 鈫?鎴掓寚
-- 灏忓叕涓?灏忓伐涓?灏忓叕涓?鈫?灏忓叕涓?- 濂崇帇/濂崇殗 鈫?濂崇帇
-- 瀹犵埍/閲嶇埍 鈫?瀹犵埍
-- 鐙珛/璇诲姏 鈫?鐙珛
-- 寮哄ぇ/澧欏ぇ 鈫?寮哄ぇ
+    """用LLM根据首饰上下文修正Whisper的语音识别错误"""
+    prompt = f"""你是首饰珠宝直播语音识别校对专家。下面是一段Whisper转录的首饰直播口播，因主播有口音导致识别错误。请根据上下文和首饰领域常识修正所有错误。
 
-銆愯鍒欍€?1. 鍙慨姝ｆ槑鏄剧殑璇煶璇嗗埆閿欒锛屼笉閫氶『澶勪繚鎸佸師鎰?2. 淇鍚庡繀椤荤鍚堥楗?鐝犲疂/閰嶉グ棰嗗煙璇
-3. 涓嶈娣诲姞鍘熸枃娌℃湁鐨勪俊鎭?4. 淇濈暀鎵€鏈夋暟瀛椼€佹爣鐐?5. 杩斿洖鏍煎紡锛歿{"corrected": "淇鍚庣殑瀹屾暣鏂囧瓧"}}锛屽彧杩斿洖JSON
+【必须修正的常见错误】
+- 吊死/吊死 → 掉色
+- 灵荡/零当/零铛 → 铃铛
+- 黄瓜/黄光/惶光 → 皇冠
+- 木鱼鹿/木鱼路 → 沐浴露
+- 纽光/牛光/扭光 → 流光
+- 起的吊脚/洗的吊脚 → 洗涤剂
+- 发黑 → 发黑（正确，保持）
+- 煮/主 → 洗（洗澡场景）
+- 高温水煮 → 高温水洗
+- 脚脸/角脸 → 脚链
+- 手脸 → 手链
+- 耳盯 → 耳钉
+- 向脸 → 项链
+- 借子 → 戒指
+- 小公主/小工主/小公举 → 小公主
+- 女王/女皇 → 女王
+- 宠爱/重爱 → 宠爱
+- 独立/读力 → 独立
+- 强大/墙大 → 强大
 
-鍘熸枃锛歿raw_text}"""
+【规则】
+1. 只修正明显的语音识别错误，不通顺处保持原意
+2. 修正后必须符合首饰/珠宝/配饰领域语境
+3. 不要添加原文没有的信息
+4. 保留所有数字、标点
+5. 返回格式：{{"corrected": "修正后的完整文字"}}，只返回JSON
+
+原文：{raw_text}"""
     try:
         r = requests.post("https://ark.cn-beijing.volces.com/api/v3/chat/completions",
             headers={"Authorization":f"Bearer {API_KEY}","Content-Type":"application/json"},
@@ -114,16 +126,18 @@ def fix_transcription(raw_text):
                 if 'corrected' in data:
                     return data['corrected']
     except: pass
-    return raw_text  # 澶辫触杩斿洖鍘熸枃
+    return raw_text  # 失败返回原文
 
 def llm_review(text, platform):
-    prompt = f"""浣犳槸{platform}鐢靛晢鍚堣瀹℃牳銆傚垽鏂繚瑙勶紝娉ㄦ剰ASR鍙兘鏈夐敊鍒瓧銆?瑙勫垯锛氬瑙傝瘎浠稯K("鏈€鍙楁杩?)锛岀粷瀵规壙璇鸿繚瑙?"缁濆涓嶆帀鑹?)锛岃糠淇¤瘝蹇呰繚瑙勶紝鏉愯川鎵胯(涓嶆帀鑹?闃叉晱/姘存礂涓嶆憳)鍦ㄥ揩鎵嬪繀杩濊銆?杩斿洖JSON锛歿{"has_violation":true/false,"violations":[{{"text":"鐗囨","reason":"鐞嗙敱","severity":"楂?涓?浣?,"fix":"寤鸿"}}],"summary":"鎬荤粨"}}"""
+    prompt = f"""你是{platform}电商合规审核。判断违规，注意ASR可能有错别字。
+规则：客观评价OK("最受欢迎")，绝对承诺违规("绝对不掉色")，迷信词必违规，材质承诺(不掉色/防敏/水洗不摘)在快手必违规。
+返回JSON：{{"has_violation":true/false,"violations":[{{"text":"片段","reason":"理由","severity":"高/中/低","fix":"建议"}}],"summary":"总结"}}"""
     try:
         r = requests.post("https://ark.cn-beijing.volces.com/api/v3/chat/completions",
             headers={"Authorization":f"Bearer {API_KEY}","Content-Type":"application/json"},
             json={"model":"doubao-seed-1-6-250615","messages":[
                 {"role":"system","content":prompt},
-                {"role":"user","content":f"鍒嗘瀽锛歿text}"}
+                {"role":"user","content":f"分析：{text}"}
             ],"temperature":0,"max_tokens":400}, timeout=30)
         if r.status_code==200:
             raw = r.json()['choices'][0]['message']['content']
@@ -152,17 +166,19 @@ def quick_ocr(video_path):
 
 def scan(video_path, fname, platform):
     t0 = time.time()
-    bad_words = flatten(st.session_state.douyin_dict if platform=="鎶栭煶" else st.session_state.kuaishou_dict)
+    bad_words = flatten(st.session_state.douyin_dict if platform=="抖音" else st.session_state.kuaishou_dict)
     
-    # Whisper杞綍锛堥楗伴鍩熻瘝姹囧紩瀵?璇嶇骇鏃堕棿鎴筹級
+    # Whisper转录（首饰领域词汇引导+词级时间戳）
     result = whip.transcribe(video_path, language='zh', fp16=False, 
                              initial_prompt=JEWELRY_VOCAB, word_timestamps=True)
     raw_text = result['text']
     segments = result.get('segments', [])
     
-    # LLM鍚庢牎姝ｏ細淇鍙ｉ煶瀵艰嚧鐨勮瘑鍒敊璇?    text = fix_transcription(raw_text)
+    # LLM后校正：修正口音导致的识别错误
+    text = fix_transcription(raw_text)
     
-    # 鍏抽敭璇嶆壂鎻忥紙浣跨敤璇嶇骇鏃堕棿鎴筹紝绮惧噯鍒扮锛?    kw_hits = []
+    # 关键词扫描（使用词级时间戳，精准到秒）
+    kw_hits = []
     # Build word timeline from segments
     word_timeline = []
     for seg in segments:
@@ -203,7 +219,7 @@ def scan(video_path, fname, platform):
                     i += len(bw)-1; break
             i += 1
     
-    # 椋庨櫓璇嶆壂鎻忥紙鍚屾牱浣跨敤璇嶇骇鏃堕棿鎴筹級
+    # 风险词扫描（同样使用词级时间戳）
     risk_hits = []
     if word_timeline:
         tl_text = ''.join([w['word'] for w in word_timeline])
@@ -237,47 +253,47 @@ def scan(video_path, fname, platform):
     # OCR
     ocr = quick_ocr(video_path)
     
-    # 鍒ゅ畾
+    # 判定
     llm_v = llm and llm.get('has_violation', False)
     has_ocr = any(any(bw in o.get('text','') for bw in bad_words) for o in ocr)
-    status = "杩濊" if (kw_hits or llm_v or has_ocr) else "OK"
+    status = "违规" if (kw_hits or llm_v or has_ocr) else "OK"
     
     return {"file":fname,"status":status,"elapsed":round(time.time()-t0,1),
             "text":text,"raw_text":raw_text,"kw_hits":kw_hits,"risk_hits":risk_hits,"llm":llm,"ocr":ocr}
 
 # Sidebar
 with st.sidebar:
-    platform = st.selectbox("馃幆 骞冲彴",["鎶栭煶","蹇墜"])
+    platform = st.selectbox("🎯 平台",["抖音","快手"])
     st.divider()
-    st.markdown("### 馃摑 鑷畾涔夎瘝搴?)
-    tab1,tab2 = st.tabs(["鎶栭煶璇嶅簱","蹇墜璇嶅簱"])
+    st.markdown("### 📝 自定义词库")
+    tab1,tab2 = st.tabs(["抖音词库","快手词库"])
     
     def dict_editor(tab, store):
         with tab:
-            nc = st.text_input("鏂板垎绫?,key=f"cat_{store}")
-            nw = st.text_input("鏂拌瘝(,鍒嗛殧)",key=f"w_{store}")
-            if nc and nw and st.button("娣诲姞",key=f"add_{store}"):
+            nc = st.text_input("新分类",key=f"cat_{store}")
+            nw = st.text_input("新词(,分隔)",key=f"w_{store}")
+            if nc and nw and st.button("添加",key=f"add_{store}"):
                 for w in [x.strip() for x in nw.split(",") if x.strip()]:
                     if nc not in st.session_state[store]: st.session_state[store][nc]=[]
                     if w not in st.session_state[store][nc]: st.session_state[store][nc].append(w)
                 st.rerun()
             for cat,words in st.session_state[store].items():
-                with st.expander(f"{cat} ({len(words)}璇?"):
+                with st.expander(f"{cat} ({len(words)}词)"):
                     st.caption(", ".join(words))
     
     dict_editor(tab1,'douyin_dict')
     dict_editor(tab2,'kuaishou_dict')
     total = sum(len(v) for v in st.session_state.douyin_dict.values()) + sum(len(v) for v in st.session_state.kuaishou_dict.values())
-    st.metric("璇嶅簱鎬昏",f"{total}璇?)
-    if st.button("馃攧 鎭㈠榛樿",use_container_width=True):
+    st.metric("词库总计",f"{total}词")
+    if st.button("🔄 恢复默认",use_container_width=True):
         st.session_state.douyin_dict=default_douyin()
         st.session_state.kuaishou_dict=default_kuaishou()
         st.rerun()
 
 # Main
-uploaded = st.file_uploader("馃摛 鎷栨嫿瑙嗛锛坢p4/mov/avi锛?,type=["mp4","mov","avi"],accept_multiple_files=True)
+uploaded = st.file_uploader("📤 拖拽视频（mp4/mov/avi）",type=["mp4","mov","avi"],accept_multiple_files=True)
 
-if uploaded and st.button("鈿?寮€濮嬫壂鎻?,type="primary",use_container_width=True):
+if uploaded and st.button("⚡ 开始扫描",type="primary",use_container_width=True):
     progress = st.progress(0)
     status_text = st.empty()
     results_area = st.container()
@@ -286,7 +302,7 @@ if uploaded and st.button("鈿?寮€濮嬫壂鎻?,type="primary",use_container_
     risk_count = 0
     
     for idx, uf in enumerate(uploaded):
-        status_text.info(f"鈿?鎵弿涓?({idx+1}/{len(uploaded)}) {uf.name} ...")
+        status_text.info(f"⚡ 扫描中 ({idx+1}/{len(uploaded)}) {uf.name} ...")
         
         tmp = tempfile.mktemp(suffix=os.path.splitext(uf.name)[1])
         with open(tmp,'wb') as f: f.write(uf.read())
@@ -296,81 +312,82 @@ if uploaded and st.button("鈿?寮€濮嬫壂鎻?,type="primary",use_container_
         if r['status'] != 'OK': bad_count += 1
         elif r.get('risk_hits'): risk_count += 1
         
-        # 杈规壂杈瑰嚭缁撴灉
+        # 边扫边出结果
         with results_area:
             if r['status'] == 'OK' and not r.get('risk_hits'):
-                with st.expander(f"鉁?{r['file']} 鈥?瀹夊叏 | {r['elapsed']}s"):
-                    st.caption(f"鍙ｆ挱: {r['text'][:200]}")
+                with st.expander(f"✅ {r['file']} — 安全 | {r['elapsed']}s"):
+                    st.caption(f"口播: {r['text'][:200]}")
             elif r['status'] == 'OK' and r.get('risk_hits'):
-                with st.expander(f"鈿狅笍 {r['file']} 鈥?鏈夐闄╂彁绀?| {r['elapsed']}s", expanded=True):
-                    st.warning(f"馃煛 椋庨櫓鎻愰啋 ({len(r['risk_hits'])}澶?:")
-                    for h in r['risk_hits']: st.write(f"  鈥?`{h['word']}` @ {h['time']}")
+                with st.expander(f"⚠️ {r['file']} — 有风险提示 | {r['elapsed']}s", expanded=True):
+                    st.warning(f"🟡 风险提醒 ({len(r['risk_hits'])}处):")
+                    for h in r['risk_hits']: st.write(f"  • `{h['word']}` @ {h['time']}")
                     if r['kw_hits']:
-                        st.error(f"馃攳 鍏抽敭璇?({len(r['kw_hits'])}澶?:")
-                        for h in r['kw_hits']: st.write(f"  鈥?`{h['word']}` @ {h['time']}")
+                        st.error(f"🔍 关键词 ({len(r['kw_hits'])}处):")
+                        for h in r['kw_hits']: st.write(f"  • `{h['word']}` @ {h['time']}")
                     if r['llm']:
                         llm = r['llm']
                         if llm.get('has_violation'):
-                            st.error(f"馃 LLM: {llm.get('summary','')}")
+                            st.error(f"🧠 LLM: {llm.get('summary','')}")
                             for v in llm.get('violations',[]):
-                                s = {"楂?:"馃敶","涓?:"馃煚","浣?:"馃煛"}.get(v.get('severity',''),'')
-                                st.write(f"  {s} `{v['text']}` 鈥?{v.get('reason','')}")
-                                if v.get('fix'): st.caption(f"    馃挕 {v['fix']}")
+                                s = {"高":"🔴","中":"🟠","低":"🟡"}.get(v.get('severity',''),'')
+                                st.write(f"  {s} `{v['text']}` — {v.get('reason','')}")
+                                if v.get('fix'): st.caption(f"    💡 {v['fix']}")
                         else:
-                            st.success("馃 LLM: 璇姝ｅ父")
+                            st.success("🧠 LLM: 语境正常")
                     if r['ocr']:
-                        for o in r['ocr']: st.caption(f"馃摲 @{o['time']}s: {o['text'][:120]}")
-                    st.caption(f"馃摑 杞綍: {r['text'][:300]}")
+                        for o in r['ocr']: st.caption(f"📷 @{o['time']}s: {o['text'][:120]}")
+                    st.caption(f"📝 转录: {r['text'][:300]}")
             else:
-                with st.expander(f"鉂?{r['file']} 鈥?杩濊 | {r['elapsed']}s", expanded=True):
+                with st.expander(f"❌ {r['file']} — 违规 | {r['elapsed']}s", expanded=True):
                     if r['kw_hits']:
-                        st.error(f"馃攳 鍏抽敭璇?({len(r['kw_hits'])}澶?:")
-                        for h in r['kw_hits']: st.write(f"  鈥?`{h['word']}` @ {h['time']}")
+                        st.error(f"🔍 关键词 ({len(r['kw_hits'])}处):")
+                        for h in r['kw_hits']: st.write(f"  • `{h['word']}` @ {h['time']}")
                     if r.get('risk_hits'):
-                        st.warning(f"馃煛 椋庨櫓鎻愰啋 ({len(r['risk_hits'])}澶?:")
-                        for h in r['risk_hits']: st.write(f"  鈥?`{h['word']}` @ {h['time']}")
+                        st.warning(f"🟡 风险提醒 ({len(r['risk_hits'])}处):")
+                        for h in r['risk_hits']: st.write(f"  • `{h['word']}` @ {h['time']}")
                     if r['llm']:
                         llm = r['llm']
                         if llm.get('has_violation'):
-                            st.error(f"馃 LLM: {llm.get('summary','')}")
+                            st.error(f"🧠 LLM: {llm.get('summary','')}")
                             for v in llm.get('violations',[]):
-                                s = {"楂?:"馃敶","涓?:"馃煚","浣?:"馃煛"}.get(v.get('severity',''),'')
-                                st.write(f"  {s} `{v['text']}` 鈥?{v.get('reason','')}")
-                                if v.get('fix'): st.caption(f"    馃挕 {v['fix']}")
+                                s = {"高":"🔴","中":"🟠","低":"🟡"}.get(v.get('severity',''),'')
+                                st.write(f"  {s} `{v['text']}` — {v.get('reason','')}")
+                                if v.get('fix'): st.caption(f"    💡 {v['fix']}")
                         else:
-                            st.success("馃 LLM: 璇姝ｅ父")
+                            st.success("🧠 LLM: 语境正常")
                     if r['ocr']:
-                        for o in r['ocr']: st.caption(f"馃摲 @{o['time']}s: {o['text'][:120]}")
-                    st.caption(f"馃摑 杞綍: {r['text'][:300]}")
+                        for o in r['ocr']: st.caption(f"📷 @{o['time']}s: {o['text'][:120]}")
+                    st.caption(f"📝 转录: {r['text'][:300]}")
         
         progress.progress((idx+1)/len(uploaded))
     
     progress.empty()
     status_text.empty()
     
-    # 姹囨€?    c1,c2,c3,c4 = st.columns(4)
-    c1.metric("鎬昏",len(uploaded))
-    c2.metric("鍚堟牸 鉁?,len(uploaded)-bad_count-risk_count)
-    c3.metric("椋庨櫓 鈿狅笍",risk_count)
-    c4.metric("杩濊 鉂?,bad_count)
+    # 汇总
+    c1,c2,c3,c4 = st.columns(4)
+    c1.metric("总计",len(uploaded))
+    c2.metric("合格 ✅",len(uploaded)-bad_count-risk_count)
+    c3.metric("风险 ⚠️",risk_count)
+    c4.metric("违规 ❌",bad_count)
 
 st.divider()
-st.caption("HH v8 | Whisper+LLM鍚庢牎姝?| 璇嶇骇鏃堕棿鎴?| 棣栭グ涓撳煙 | 娴佸紡澶勭悊")
+st.caption("HH v8 | Whisper+LLM后校正 | 词级时间戳 | 首饰专域 | 流式处理")
 
-# ===== 鏅鸿兘鍓緫 =====
+# ===== 智能剪辑 =====
 st.divider()
-st.header("鉁傦笍 鏅鸿兘鍓緫")
-st.caption("鍕鹃€夎鍒犻櫎鐨勫彞瀛?鈫?涓€閿敓鎴愬共鍑€瑙嗛")
+st.header("✂️ 智能剪辑")
+st.caption("勾选要删除的句子 → 一键生成干净视频")
 
-edit_file = st.file_uploader("涓婁紶瑕佸壀杈戠殑瑙嗛", type=["mp4","mov","avi"], key="editor_upload")
+edit_file = st.file_uploader("上传要剪辑的视频", type=["mp4","mov","avi"], key="editor_upload")
 
 if edit_file:
-    # 瀛樺埌涓存椂鏂囦欢
+    # 存到临时文件
     tmp_vid = tempfile.mktemp(suffix=os.path.splitext(edit_file.name)[1])
     with open(tmp_vid,'wb') as f: f.write(edit_file.read())
     
-    if st.button("馃摑 璇嗗埆鍙ｆ挱", type="primary"):
-        with st.spinner("Whisper杞綍涓?.."):
+    if st.button("📝 识别口播", type="primary"):
+        with st.spinner("Whisper转录中..."):
             result = whip.transcribe(tmp_vid, language='zh', fp16=False, initial_prompt=JEWELRY_VOCAB)
             segments = result.get('segments', [])
             text = result['text']
@@ -380,16 +397,16 @@ if edit_file:
             st.session_state.edit_video = tmp_vid
             st.session_state.edit_fname = edit_file.name
             
-            st.success(f"璇嗗埆瀹屾垚锛亄len(segments)} 涓彞瀛?)
+            st.success(f"识别完成！{len(segments)} 个句子")
     
     if 'edit_segments' in st.session_state and st.session_state.edit_segments:
         segs = st.session_state.edit_segments
         
-        # 杩濈璇嶆娴嬪苟棰勯€変腑
+        # 违禁词检测并预选中
         bad_words = flatten(st.session_state.douyin_dict)
         risk_words = RISK_WORDS
         
-        st.write("### 鍕鹃€夎鍒犻櫎鐨勫彞瀛愶細")
+        st.write("### 勾选要删除的句子：")
         
         cuts = []  # time ranges to remove
         
@@ -408,16 +425,17 @@ if edit_file:
             
             label = f"{txt}  [{mm1:02d}:{ss1:02d}-{mm2:02d}:{ss2:02d}]"
             if has_bad:
-                label = f"馃敶 {label}"
+                label = f"🔴 {label}"
             elif has_risk:
-                label = f"馃煛 {label}"
+                label = f"🟡 {label}"
             
-            default_check = has_bad  # 榛樿鍕鹃€夎繚瑙勫彞瀛?            
+            default_check = has_bad  # 默认勾选违规句子
+            
             if st.checkbox(label, value=default_check, key=f"seg_{idx}"):
                 cuts.append((start, end))
         
-        if cuts and st.button("馃敧 涓€閿垹闄ゅ苟鐢熸垚瑙嗛", type="primary", use_container_width=True):
-            with st.spinner("姝ｅ湪鍓緫..."):
+        if cuts and st.button("🔪 一键删除并生成视频", type="primary", use_container_width=True):
+            with st.spinner("正在剪辑..."):
                 # Build ffmpeg filter to cut out selected segments
                 # Keep parts: 0 to cut[0].start, cut[0].end to cut[1].start, etc.
                 keep = []
@@ -433,7 +451,7 @@ if edit_file:
                     keep.append((prev_end, dur))
                 
                 if not keep:
-                    st.error("涓嶈兘鍒犻櫎鎵€鏈夊唴瀹癸紒")
+                    st.error("不能删除所有内容！")
                 else:
                     # Write concat list
                     concat_file = tempfile.mktemp(suffix='.txt')
@@ -449,12 +467,12 @@ if edit_file:
                     
                     if os.path.exists(out_vid) and os.path.getsize(out_vid) > 1000:
                         with open(out_vid, 'rb') as f:
-                            st.download_button("猬囷笍 涓嬭浇鍓緫鍚庤棰?, f, 
+                            st.download_button("⬇️ 下载剪辑后视频", f, 
                                 file_name=f"clean_{st.session_state.edit_fname}",
                                 mime="video/mp4")
-                        st.success("鍓緫瀹屾垚锛?)
+                        st.success("剪辑完成！")
                     else:
-                        st.error("鍓緫澶辫触锛屽皾璇曠敤 re-encode 鏂瑰紡...")
+                        st.error("剪辑失败，尝试用 re-encode 方式...")
                         # Fallback: re-encode with trim filters
                         filters = []
                         for s, e in keep:
@@ -468,14 +486,14 @@ if edit_file:
                             capture_output=True, timeout=120)
                         if os.path.exists(out_vid2) and os.path.getsize(out_vid2) > 1000:
                             with open(out_vid2, 'rb') as f:
-                                st.download_button("猬囷笍 涓嬭浇鍓緫鍚庤棰?, f,
+                                st.download_button("⬇️ 下载剪辑后视频", f,
                                     file_name=f"clean_{st.session_state.edit_fname}",
                                     mime="video/mp4")
-                            st.success("鍓緫瀹屾垚锛?)
+                            st.success("剪辑完成！")
                     
                     os.remove(concat_file)
         
-        if st.button("馃攧 閲嶆柊璇嗗埆"):
+        if st.button("🔄 重新识别"):
             for k in ['edit_segments','edit_text','edit_video','edit_fname']:
                 if k in st.session_state: del st.session_state[k]
             st.rerun()
