@@ -73,7 +73,7 @@ RISK_WORDS = ["发黑","变黑","掉色","褪色","变色","氧化","生锈","�
 
 @st.cache_resource
 def load_whisper():
-    return whisper.load_model('small')  # small比tiny准30%，对口音更包容
+    return whisper.load_model('tiny')  # tiny for cloud - less memory
 
 whip = load_whisper()
 
